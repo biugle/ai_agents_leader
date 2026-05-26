@@ -170,11 +170,11 @@ Tauri 桌面模式下，容器顶部有窗口控制按钮：
 | Agent           | Adapter         | 检测方式                                      |
 | --------------- | --------------- | --------------------------------------------- |
 | ClaudeCode      | ClaudeAdapter   | Hooks 插件 (实时) + JSONL 文件解析 (fallback) |
-| Cursor          | CursorAdapter   | 进程检测 + 文件监听                           |
-| CodeX           | CodexAdapter    | 进程检测 + 会话文件监听                       |
+| Cursor          | CursorAdapter   | 进程检测 + Cursor workspaceStorage 状态库变化 |
+| CodeX           | CodexAdapter    | 进程检测 + 会话 JSONL 显式事件解析            |
 | OpenCode        | OpenCodeAdapter | 进程检测 + 配置文件监听                       |
-| Cline           | ClineAdapter    | VS Code 进程 + 扩展状态文件                   |
-| RooCode         | RooCodeAdapter  | VS Code 进程 + 扩展状态文件                   |
+| Cline           | ClineAdapter    | VS Code 进程 + 扩展状态/任务文件解析          |
+| RooCode         | RooCodeAdapter  | VS Code 进程 + 扩展状态/任务文件解析          |
 | 第三方 / 自定义 | HttpAdapter     | HTTP API 推送状态                             |
 
 ```typescript

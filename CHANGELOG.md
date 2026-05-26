@@ -24,6 +24,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - `aal start` 发布态改为首次在 `~/.ai-agents-leader/desktop/<version>/overlay` 本地构建 Tauri 桌面端，后续复用缓存二进制启动
 - 根包 `publishConfig.registry` 固定为 `https://registry.npmjs.org/`，避免误发到本地或内网镜像 registry
 - 根包 `bin.aal` 路径按 npm 规范归一化，消除 `npm publish --dry-run` 的自动修正 warning
+- Codex 状态检测改为优先解析 `~/.codex/sessions/**/*.jsonl` 的显式事件与最近写入，补强 `thinking` / `running` / `completed` 判定，并为未来 `waiting_input` 结构化字段预留兼容分支
+- Cursor 状态检测改为基于 `workspaceStorage/*/state.vscdb` 的最近活动，不再监听整个家目录，减少误报
+- Cline / Roo 状态检测改为基于扩展状态目录与任务文件内容解析；无扩展活动时回落到 `idle`，不再因为 VS Code 进程存在就误判 `thinking`
 - Runtime CLI 改为通过 package-scoped `pnpm --dir apps/overlay ...` 启动 Vite / Tauri，移除跨包 `require.resolve()` 依赖
 - `aal` 入口版本号改为优先读取对外根包版本，避免 `aal -v` 错报内部 `@aal/core` 版本
 - Tauri `ensure_runtime` 只拉起 Runtime，不再误启动 Web Overlay

@@ -1,9 +1,9 @@
 import { BaseAdapter } from '../BaseAdapter.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { extractSignalStatusFromText, findExistingDirectory, findLatestFile, readFileTail, resolveEditorStorageDir } from '../editor-state.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -23,8 +23,20 @@ export class ClineAdapter extends BaseAdapter {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private lastActivity = 0;
 
+  private readonly ACTIVE_WINDOW_MS = 12_000;
+  private readonly COMPLETE_GRACE_MS = 24_000;
+
+  static findStorageDir(): string | null {
+    const globalStorage = resolveEditorStorageDir('code', 'globalStorage');
+    return findExistingDirectory([
+      join(globalStorage, 'saoudrizwan.claude-dev'),
+      join(globalStorage, 'saoudrizwan.cline'),
+    ]);
+  }
+
   async start(): Promise<void> {
     await super.start();
+    this.stalledTimeoutMs = 120_000;
 
     this.pollTimer = setInterval(async () => {
       const running = await this.isVSCodeRunning();
@@ -33,7 +45,9 @@ export class ClineAdapter extends BaseAdapter {
       } else if (this.status !== 'idle') {
         this.emit('idle', { source: 'process-exit' });
       }
-    }, 3000);
+    }, 1500);
+
+    this.detectClineState();
   }
 
   async stop(): Promise<void> {
@@ -59,45 +73,41 @@ export class ClineAdapter extends BaseAdapter {
 
   private detectClineState(): void {
     try {
-      // Cline stores state in VS Code's globalStorage
-      const globalStorage = join(
-        homedir(),
-        process.platform === 'darwin'
-          ? 'Library/Application Support/Code/User/globalStorage'
-          : process.platform === 'win32'
-            ? 'AppData/Roaming/Code/User/globalStorage'
-            : '.config/Code/User/globalStorage',
-      );
-
-      const clineDir = join(globalStorage, 'saoudrizwan.claude-dev');
-      try {
-        const stat = statSync(clineDir);
-        if (stat.mtimeMs > this.lastActivity) {
-          this.lastActivity = stat.mtimeMs;
-          this.emit('running', { source: 'cline-state' });
-          return;
-        }
-      } catch {}
-
-      // Check for Cline tasks directory
-      const tasksDir = join(clineDir, 'tasks');
-      try {
-        const files = readdirSync(tasksDir);
-        for (const file of files) {
-          const filePath = join(tasksDir, file);
-          const stat = statSync(filePath);
-          if (stat.mtimeMs > this.lastActivity) {
-            this.lastActivity = stat.mtimeMs;
-            this.emit('running', { source: 'cline-task' });
-            return;
-          }
-        }
-      } catch {}
-
-      // VS Code running, Cline installed, but no recent activity
-      if (Date.now() - this.lastActivity > 30_000) {
-        this.emit('thinking', { source: 'process-active' });
+      const clineDir = ClineAdapter.findStorageDir();
+      if (!clineDir || !existsSync(clineDir)) {
+        this.emit('idle', { source: 'cline-storage-missing' });
+        return;
       }
+
+      const latest = findLatestFile(clineDir, {
+        maxDepth: 3,
+        includeFile: (filePath) => !filePath.endsWith('.log') && !filePath.endsWith('.sqlite') && !filePath.endsWith('.sqlite-wal') && !filePath.endsWith('.sqlite-shm'),
+      });
+
+      if (!latest) {
+        this.emit('idle', { source: 'cline-no-state-files', storageDir: clineDir });
+        return;
+      }
+
+      this.lastActivity = Math.max(this.lastActivity, latest.mtimeMs);
+      const explicit = extractSignalStatusFromText(readFileTail(latest.filePath));
+      if (explicit) {
+        this.emit(explicit, { source: 'cline-state-file', stateFile: latest.filePath });
+        return;
+      }
+
+      const quietMs = Date.now() - this.lastActivity;
+      if (quietMs <= this.ACTIVE_WINDOW_MS) {
+        this.emit('running', { source: 'cline-file-change', stateFile: latest.filePath });
+        return;
+      }
+
+      if (quietMs <= this.COMPLETE_GRACE_MS) {
+        this.emit('completed', { source: 'cline-file-settled', stateFile: latest.filePath });
+        return;
+      }
+
+      this.emit('idle', { source: 'cline-file-idle', stateFile: latest.filePath });
     } catch {
       // non-critical
     }

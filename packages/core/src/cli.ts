@@ -9,6 +9,8 @@ import {
   ClaudeAdapter,
   CursorAdapter,
   CodexAdapter,
+  CopilotChatAdapter,
+  ChatGPTAdapter,
   OpenCodeAdapter,
   ClineAdapter,
   RooCodeAdapter,
@@ -672,15 +674,22 @@ async function discoverAgents(runtime: Awaited<ReturnType<typeof startRuntime>>)
     agentCount++;
   }
 
+  if (await isProcessRunning('Code') && CopilotChatAdapter.isInstalled()) {
+    detectedAgents.add('copilot-chat');
+    log.info('Detected: GitHub Copilot Chat');
+    await runtime.adapterManager.register(new CopilotChatAdapter());
+    agentCount++;
+  }
+
+  if (await isProcessRunning('Code') && ChatGPTAdapter.isInstalled()) {
+    detectedAgents.add('chatgpt-vscode');
+    log.info('Detected: OpenAI ChatGPT (VS Code)');
+    await runtime.adapterManager.register(new ChatGPTAdapter());
+    agentCount++;
+  }
+
   // Cline (VS Code extension)
-  if (await isProcessRunning('Code') && existsSync(join(
-    homedir(),
-    process.platform === 'darwin'
-      ? 'Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev'
-      : process.platform === 'win32'
-        ? 'AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev'
-        : '.config/Code/User/globalStorage/saoudrizwan.claude-dev',
-  ))) {
+  if (await isProcessRunning('Code') && ClineAdapter.findStorageDir()) {
     detectedAgents.add('cline');
     log.info('Detected: Cline');
     await runtime.adapterManager.register(new ClineAdapter());
@@ -688,14 +697,7 @@ async function discoverAgents(runtime: Awaited<ReturnType<typeof startRuntime>>)
   }
 
   // Roo Code (VS Code extension)
-  if (await isProcessRunning('Code') && existsSync(join(
-    homedir(),
-    process.platform === 'darwin'
-      ? 'Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline'
-      : process.platform === 'win32'
-        ? 'AppData/Roaming/Code/User/globalStorage/rooveterinaryinc.roo-cline'
-        : '.config/Code/User/globalStorage/rooveterinaryinc.roo-cline',
-  ))) {
+  if (await isProcessRunning('Code') && RooCodeAdapter.findStorageDir()) {
     detectedAgents.add('roo');
     log.info('Detected: RooCode');
     await runtime.adapterManager.register(new RooCodeAdapter());

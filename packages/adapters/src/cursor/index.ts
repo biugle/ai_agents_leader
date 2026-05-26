@@ -1,9 +1,7 @@
 import { BaseAdapter } from '../BaseAdapter.js';
-import { watch, type FSWatcher } from 'chokidar';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { findLatestFile, resolveEditorStorageDir } from '../editor-state.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -19,48 +17,27 @@ export class CursorAdapter extends BaseAdapter {
   readonly displayName = 'Cursor';
   readonly icon = '✏️';
 
-  private watcher: FSWatcher | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private lastFileChange = 0;
+  private lastStateChange = 0;
+
+  private readonly ACTIVE_WINDOW_MS = 12_000;
+  private readonly COMPLETE_GRACE_MS = 24_000;
 
   async start(): Promise<void> {
     await super.start();
+    this.stalledTimeoutMs = 120_000;
 
-    // Poll for Cursor process
     this.pollTimer = setInterval(async () => {
       const running = await this.isCursorRunning();
-      if (running && this.status === 'idle') {
-        this.emit('thinking', { source: 'process-detection' });
-      } else if (!running && this.status !== 'idle') {
+      if (!running && this.status !== 'idle') {
         this.emit('idle', { source: 'process-exit' });
+        return;
       }
-    }, 5000);
 
-    // Watch workspace for changes
-    try {
-      const workspaceDir = join(homedir());
-      this.watcher = watch(workspaceDir, {
-        ignoreInitial: true,
-        depth: 1,
-        ignored: [/node_modules/, /\.git/, /\..*/],
-      });
+      this.detectState();
+    }, 1500);
 
-      this.watcher.on('all', () => {
-        this.lastFileChange = Date.now();
-        if (this.status === 'thinking' || this.status === 'idle') {
-          this.emit('running', { source: 'file-change' });
-        }
-
-        // Debounce: return to thinking after 5s of no changes
-        setTimeout(() => {
-          if (Date.now() - this.lastFileChange >= 4500 && this.status === 'running') {
-            this.emit('thinking', { source: 'file-idle' });
-          }
-        }, 5000);
-      });
-    } catch {
-      // non-critical
-    }
+    this.detectState();
   }
 
   async stop(): Promise<void> {
@@ -68,11 +45,36 @@ export class CursorAdapter extends BaseAdapter {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
-    if (this.watcher) {
-      await this.watcher.close();
-      this.watcher = null;
-    }
     await super.stop();
+  }
+
+  private detectState(): void {
+    const workspaceStorageDir = resolveEditorStorageDir('cursor', 'workspaceStorage');
+    const latestStateFile = findLatestFile(workspaceStorageDir, {
+      maxDepth: 2,
+      includeFile: (filePath) => filePath.endsWith('/state.vscdb') || filePath.endsWith('\\state.vscdb'),
+    });
+
+    if (!latestStateFile) {
+      this.emit('idle', { source: 'workspace-storage-missing' });
+      return;
+    }
+
+    const now = Date.now();
+    this.lastStateChange = Math.max(this.lastStateChange, latestStateFile.mtimeMs);
+    const quietMs = now - this.lastStateChange;
+
+    if (quietMs <= this.ACTIVE_WINDOW_MS) {
+      this.emit('running', { source: 'cursor-workspace-state', stateFile: latestStateFile.filePath });
+      return;
+    }
+
+    if (quietMs <= this.COMPLETE_GRACE_MS) {
+      this.emit('completed', { source: 'cursor-workspace-settled', stateFile: latestStateFile.filePath });
+      return;
+    }
+
+    this.emit('idle', { source: 'cursor-workspace-idle', stateFile: latestStateFile.filePath });
   }
 
   private async isCursorRunning(): Promise<boolean> {
@@ -82,7 +84,7 @@ export class CursorAdapter extends BaseAdapter {
         return stdout.includes('Cursor.exe');
       }
       const { stdout } = await execFileAsync('ps', ['aux']);
-      return stdout.split('\n').some((line) => /\bCursor\b/.test(line) && !/process-detector/.test(line));
+      return stdout.split('\n').some((line) => /\/Cursor\.app\/Contents\/MacOS\/Cursor\b/.test(line) || /\bCursor\.exe\b/.test(line));
     } catch {
       return false;
     }
