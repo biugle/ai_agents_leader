@@ -1,0 +1,36 @@
+{
+  "name": "@aal/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "aal": "./bin/aal.mjs"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts --mode=web",
+    "dev:mock": "tsx src/cli.ts --mode=web --mock",
+    "start": "tsx src/cli.ts --mode=tauri",
+    "start:mock": "tsx src/cli.ts --mode=tauri --mock",
+    "runtime": "tsx src/cli.ts --runtime-only",
+    "runtime:mock": "tsx src/cli.ts --runtime-only --mock",
+    "clean": "tsx src/cli.ts --clean",
+    "check": "tsx src/cli.ts --check",
+    "fixit": "tsx src/cli.ts --fixit"
+  },
+  "dependencies": {
+    "@aal/shared": "workspace:*",
+    "@aal/adapters": "workspace:*",
+    "eventemitter3": "^5.0.1",
+    "ws": "^8.18.0",
+    "pino": "^9.0.0",
+    "zod": "^3.23.0",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/ws": "^8.5.0",
+    "@types/node": "^22.0.0"
+  }
+}

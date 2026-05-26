@@ -1,0 +1,63 @@
+{
+  "name": "ai-agents-leader",
+  "version": "0.3.0",
+  "description": "Local AI Runtime Signal System — see lights to know if AI is alive",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/ai-agents-leader",
+  "files": [
+    "bundle/**/*",
+    "packages/core/bin/**/*",
+    "README.md",
+    "LICENSE",
+    "OPEN_SOURCE.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "PRIVACY.md"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "runtime",
+    "tauri",
+    "overlay",
+    "websocket",
+    "signal"
+  ],
+  "dependencies": {
+    "@tauri-apps/cli": "^2.11.2",
+    "chokidar": "^4",
+    "eventemitter3": "^5",
+    "execa": "^9",
+    "pino": "^9",
+    "ws": "^8",
+    "zod": "^3"
+  },
+  "bin": {
+    "aal": "packages/core/bin/aal.mjs"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "dev": "node ./packages/core/bin/aal.mjs dev",
+    "dev:mock": "node ./packages/core/bin/aal.mjs dev:mock",
+    "start": "node ./packages/core/bin/aal.mjs start",
+    "start:mock": "node ./packages/core/bin/aal.mjs start:mock",
+    "runtime": "node ./packages/core/bin/aal.mjs runtime",
+    "runtime:mock": "node ./packages/core/bin/aal.mjs runtime:mock",
+    "clean": "node ./packages/core/bin/aal.mjs clean",
+    "check": "node ./packages/core/bin/aal.mjs check",
+    "fixit": "node ./packages/core/bin/aal.mjs fixit",
+    "build": "pnpm -r run build",
+    "build:release-assets": "node ./scripts/build-release-assets.mjs",
+    "clean:node": "node ./scripts/clean-node-modules.mjs",
+    "lint": "eslint . --ext .ts,.tsx",
+    "prepack": "node ./scripts/build-release-assets.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
