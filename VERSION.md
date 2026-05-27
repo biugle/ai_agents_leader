@@ -3,9 +3,9 @@
 ## 当前发布目标
 
 - 包名：`ai-agents-leader`
-- 当前版本：`0.3.0`
+- 当前版本：`0.3.1`
 - 建议 npm tag：`latest`
-- 建议 git tag：`v0.3.0`
+- 建议 git tag：`v0.3.1`
 - 发布 registry：`https://registry.npmjs.org/`
 
 ## 发包前检查
@@ -38,20 +38,20 @@ npm publish --registry=https://registry.npmjs.org/
 ## 推荐打 tag
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.3.1
+git push origin v0.3.1
 ```
 
 如果发布后再补 tag，会造成 npm 版本与仓库标签不同步，建议在确认 `npm publish` 成功后立即推送 tag。
 
 ## Release Note 草稿
 
-标题：`v0.3.0`
+标题：`v0.3.1`
 
 正文：
 
 ```md
-## AI Agents Leader v0.3.0
+## AI Agents Leader v0.3.1
 
 这次版本把项目从“仓库里能跑”推进到“npm 安装后可直接使用”。
 
@@ -66,6 +66,8 @@ git push origin v0.3.0
 - 默认非 mock 路径统一连接本地真实 agent，只有显式 mock 命令才启用 mock 数据
 - README、使用文档、开发文档、AI 交接文档已和当前启动链路、桌面模式、发布态行为对齐
 - npm 发布目标固定到 `https://registry.npmjs.org/`，并清理了包元数据 warning
+- `aal check` / `aal fixit` 增加跨平台桌面构建前置检查：Windows 检测 Visual Studio C++ Build Tools，Linux 检测 GTK / WebKitGTK / libsoup，macOS 检测 Xcode Command Line Tools
+- Windows 桌面构建失败提示改为显式说明“VS Code 不是 Visual Studio Build Tools”
 
 ### Verify
 
@@ -77,8 +79,8 @@ git push origin v0.3.0
 ## 版本调整规则
 
 - 只改功能文档，不改代码：可保持当前版本，合并到下一次发版
-- 修复发布阻塞但不改对外能力：升补丁版本，如 `0.3.0 -> 0.3.1`
-- 新增命令、启动模式、适配器能力：升次版本，如 `0.3.0 -> 0.4.0`
+- 修复发布阻塞但不改对外能力：升补丁版本，如 `0.3.1 -> 0.3.2`
+- 新增命令、启动模式、适配器能力：升次版本，如 `0.3.1 -> 0.4.0`
 - 破坏命令语义、配置格式、协议兼容：升主版本，如 `0.x -> 1.0.0`
 
 ## 当前结论
@@ -87,4 +89,4 @@ git push origin v0.3.0
 
 - 使用真实 npm 账号执行 `npm login`
 - 执行正式 `npm publish`
-- 推送 `v0.3.0` tag
+- 推送 `v0.3.1` tag

@@ -175,6 +175,8 @@ async function runNodeScript(scriptPath: string, args: string[], cwd: string): P
 }
 
 async function startPackagedTauriOverlay(): Promise<ChildProcess> {
+  await ensureDesktopBuildReady();
+
   const tauriCliPath = resolveTauriCliPath();
   if (!tauriCliPath) {
     throw new Error('Tauri CLI is not available in this installation.');
@@ -187,7 +189,25 @@ async function startPackagedTauriOverlay(): Promise<ChildProcess> {
     log.info('Building packaged Tauri overlay...');
     console.log('  模式:    Tauri 桌面应用（首次本地构建约 2-5 分钟）');
     console.log('  构建:    使用已安装 Rust 环境本地编译桌面端');
-    await runNodeScript(tauriCliPath, ['build'], overlayDir);
+    try {
+      await runNodeScript(tauriCliPath, ['build'], overlayDir);
+    } catch (error) {
+      if (process.platform === 'win32') {
+        console.log('');
+        printWindowsBuildToolsHint();
+        console.log('');
+      } else if (process.platform === 'linux') {
+        console.log('');
+        printLinuxDesktopHint();
+        console.log('');
+      } else if (process.platform === 'darwin') {
+        console.log('');
+        printMacosDesktopHint();
+        console.log('');
+      }
+
+      throw error;
+    }
     executablePath = resolvePackagedExecutablePath(overlayDir);
   } else {
     console.log('  模式:    Tauri 桌面应用（已缓存桌面端）');
@@ -283,6 +303,203 @@ async function isRustAvailable(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function isCargoAvailable(): Promise<boolean> {
+  try {
+    await execFileAsync('cargo', ['--version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function hasCommand(command: string): Promise<boolean> {
+  try {
+    if (process.platform === 'win32') {
+      await execFileAsync('where', [command]);
+    } else {
+      await execFileAsync('which', [command]);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isWindowsMsvcBuildToolsAvailable(): Promise<boolean> {
+  if (process.platform !== 'win32') {
+    return true;
+  }
+
+  if (process.env.VCToolsInstallDir || process.env.VisualStudioVersion) {
+    return true;
+  }
+
+  if (await hasCommand('cl.exe')) {
+    return true;
+  }
+
+  const vswherePath = process.env['ProgramFiles(x86)']
+    ? join(process.env['ProgramFiles(x86)'], 'Microsoft Visual Studio', 'Installer', 'vswhere.exe')
+    : 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe';
+
+  try {
+    const { stdout } = await execFileAsync(vswherePath, [
+      '-latest',
+      '-products',
+      '*',
+      '-requires',
+      'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+      '-property',
+      'installationPath',
+    ]);
+
+    return stdout.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function getLinuxDesktopDependencyStatus(): Promise<{
+  pkgConfig: boolean;
+  webkit: boolean;
+  gtk3: boolean;
+  libsoup: boolean;
+}> {
+  if (process.platform !== 'linux') {
+    return {
+      pkgConfig: true,
+      webkit: true,
+      gtk3: true,
+      libsoup: true,
+    };
+  }
+
+  const pkgConfig = await hasCommand('pkg-config');
+  if (!pkgConfig) {
+    return {
+      pkgConfig: false,
+      webkit: false,
+      gtk3: false,
+      libsoup: false,
+    };
+  }
+
+  const pkgExists = async (pkg: string): Promise<boolean> => {
+    try {
+      await execFileAsync('pkg-config', ['--exists', pkg]);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const webkit = await pkgExists('webkit2gtk-4.1') || await pkgExists('webkit2gtk-4.0');
+  const gtk3 = await pkgExists('gtk+-3.0');
+  const libsoup = await pkgExists('libsoup-3.0') || await pkgExists('libsoup-2.4');
+
+  return { pkgConfig, webkit, gtk3, libsoup };
+}
+
+async function isMacosXcodeCliAvailable(): Promise<boolean> {
+  if (process.platform !== 'darwin') {
+    return true;
+  }
+
+  try {
+    await execFileAsync('xcode-select', ['-p']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getDesktopBuildReadiness(): Promise<{
+  rust: boolean;
+  cargo: boolean;
+  tauriCli: boolean;
+  windowsMsvc: boolean;
+  macosXcodeCli: boolean;
+  linuxDeps: {
+    pkgConfig: boolean;
+    webkit: boolean;
+    gtk3: boolean;
+    libsoup: boolean;
+  };
+}> {
+  return {
+    rust: await isRustAvailable(),
+    cargo: await isCargoAvailable(),
+    tauriCli: resolveTauriCliPath() !== null,
+    windowsMsvc: await isWindowsMsvcBuildToolsAvailable(),
+    macosXcodeCli: await isMacosXcodeCliAvailable(),
+    linuxDeps: await getLinuxDesktopDependencyStatus(),
+  };
+}
+
+function printWindowsBuildToolsHint(): void {
+  console.log('  Windows 桌面构建除了 Rust 之外，还需要 Visual Studio C++ Build Tools。');
+  console.log('  注意：VS Code 是另一个产品，不能替代 Visual Studio Build Tools。');
+  console.log('');
+  console.log('  推荐安装：');
+  console.log('    1. Visual Studio 2022 Build Tools');
+  console.log('    2. 勾选 Desktop development with C++');
+  console.log('    3. 安装完成后重开终端，再执行 aal check / aal start');
+  console.log('');
+  console.log('  下载地址：');
+  console.log('    https://visualstudio.microsoft.com/visual-cpp-build-tools/');
+}
+
+function printLinuxDesktopHint(): void {
+  console.log('  Linux 桌面构建除了 Rust 之外，还需要 GTK / WebKitGTK / libsoup 等系统开发包。');
+  console.log('  不同发行版包名不同，但至少要确认 pkg-config、gtk3、webkit2gtk、libsoup 可用。');
+  console.log('');
+  console.log('  Ubuntu / Debian 常见安装示例：');
+  console.log('    sudo apt update');
+  console.log('    sudo apt install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libayatana-appindicator3-dev librsvg2-dev');
+}
+
+function printMacosDesktopHint(): void {
+  console.log('  macOS 桌面构建需要 Xcode Command Line Tools。');
+  console.log('  安装命令：');
+  console.log('    xcode-select --install');
+}
+
+async function ensureDesktopBuildReady(): Promise<void> {
+  const readiness = await getDesktopBuildReadiness();
+
+  if (!readiness.rust || !readiness.cargo) {
+    throw new Error('Rust / Cargo is required for desktop mode. Run `aal check` for install guidance.');
+  }
+
+  if (!readiness.tauriCli) {
+    throw new Error('Tauri CLI is not available in this installation.');
+  }
+
+  if (process.platform === 'win32' && !readiness.windowsMsvc) {
+    console.log('');
+    printWindowsBuildToolsHint();
+    console.log('');
+    throw new Error('Windows desktop build requires Visual Studio C++ Build Tools. VS Code alone is not sufficient.');
+  }
+
+  if (process.platform === 'linux') {
+    const { pkgConfig, webkit, gtk3, libsoup } = readiness.linuxDeps;
+    if (!pkgConfig || !webkit || !gtk3 || !libsoup) {
+      console.log('');
+      printLinuxDesktopHint();
+      console.log('');
+      throw new Error('Linux desktop build requires pkg-config, GTK3, WebKitGTK and libsoup development packages.');
+    }
+  }
+
+  if (process.platform === 'darwin' && !readiness.macosXcodeCli) {
+    console.log('');
+    printMacosDesktopHint();
+    console.log('');
+    throw new Error('macOS desktop build requires Xcode Command Line Tools.');
   }
 }
 
@@ -471,18 +688,14 @@ async function startOverlay(mode: 'web' | 'tauri'): Promise<ChildProcess | null>
       console.log('  ⚠ 发布包暂不提供 aal dev，自动切换为桌面模式\n');
     }
 
-    const hasRust = await isRustAvailable();
-    if (!hasRust) {
-      throw new Error('Rust is required for the packaged desktop build path.');
-    }
+    await ensureDesktopBuildReady();
 
     return startPackagedTauriOverlay();
   }
 
   if (mode === 'tauri') {
-    // Check Rust availability
-    const hasRust = await isRustAvailable();
-    if (!hasRust) {
+    const readiness = await getDesktopBuildReadiness();
+    if (!readiness.rust || !readiness.cargo) {
       console.log('  ⚠ Rust 未安装，自动切换为 Web 模式');
       console.log('');
       console.log('  安装 Rust（桌面浮窗模式需要）：');
@@ -496,6 +709,30 @@ async function startOverlay(mode: 'web' | 'tauri'): Promise<ChildProcess | null>
         console.log('    Linux:   curl --proto=\'=https\' --tlsv1.2 -sSf https://sh.rustup.rs | sh');
         console.log('             或: sudo apt install rustc cargo');
       }
+      console.log('');
+      console.log('  安装后重启终端，运行: pnpm start');
+      console.log('');
+      mode = 'web';
+    } else if (process.platform === 'win32' && !readiness.windowsMsvc) {
+      console.log('  ⚠ Windows 桌面模式缺少 Visual Studio C++ Build Tools，自动切换为 Web 模式');
+      console.log('');
+      printWindowsBuildToolsHint();
+      console.log('');
+      console.log('  安装后重启终端，运行: pnpm start');
+      console.log('');
+      mode = 'web';
+    } else if (process.platform === 'linux' && (!readiness.linuxDeps.pkgConfig || !readiness.linuxDeps.webkit || !readiness.linuxDeps.gtk3 || !readiness.linuxDeps.libsoup)) {
+      console.log('  ⚠ Linux 桌面模式缺少 GTK / WebKitGTK / libsoup 系统依赖，自动切换为 Web 模式');
+      console.log('');
+      printLinuxDesktopHint();
+      console.log('');
+      console.log('  安装后重启终端，运行: pnpm start');
+      console.log('');
+      mode = 'web';
+    } else if (process.platform === 'darwin' && !readiness.macosXcodeCli) {
+      console.log('  ⚠ macOS 桌面模式缺少 Xcode Command Line Tools，自动切换为 Web 模式');
+      console.log('');
+      printMacosDesktopHint();
       console.log('');
       console.log('  安装后重启终端，运行: pnpm start');
       console.log('');
@@ -543,21 +780,35 @@ async function startOverlay(mode: 'web' | 'tauri'): Promise<ChildProcess | null>
 }
 
 async function printSystemStatus(): Promise<void> {
-  const hasRust = await isRustAvailable();
+  const readiness = await getDesktopBuildReadiness();
   const workspaceOverlay = hasWorkspaceOverlay();
   const packagedOverlay = hasPackagedOverlayTemplate();
   const coreTsx = workspaceOverlay
     ? await canRunPnpm(['--dir', CORE_DIR, 'exec', 'tsx', '--version'])
     : existsSync(join(BUNDLE_DIR, 'runtime', 'core', 'cli.js'));
   const overlayVite = workspaceOverlay ? await isOverlayCliAvailable('vite') : packagedOverlay;
-  const overlayTauri = resolveTauriCliPath() !== null;
+  const overlayTauri = readiness.tauriCli;
   const wsOccupant = await getPortOccupant(WS_PORT);
   const apiOccupant = await getPortOccupant(WS_PORT + 1);
   const overlayOccupant = await getPortOccupant(OVERLAY_PORT);
 
   console.log(`  版本:    ${VERSION || '0.1.0'}`);
   console.log(`  Node.js: ${process.version}`);
-  console.log(`  Rust:    ${hasRust ? '✓ 已安装' : '✗ 未安装（桌面模式需要）'}`);
+  console.log(`  Rust:    ${readiness.rust ? '✓ 已安装' : '✗ 未安装（桌面模式需要）'}`);
+  console.log(`  Cargo:   ${readiness.cargo ? '✓ 可用' : '✗ 不可用'}`);
+  if (process.platform === 'win32') {
+    console.log(`  MSVC:    ${readiness.windowsMsvc ? '✓ Visual Studio C++ Build Tools 可用' : '✗ 缺少 Visual Studio C++ Build Tools'}`);
+  }
+  if (process.platform === 'darwin') {
+    console.log(`  Xcode:   ${readiness.macosXcodeCli ? '✓ Command Line Tools 可用' : '✗ 缺少 Command Line Tools'}`);
+  }
+  if (process.platform === 'linux') {
+    const linuxStatus = readiness.linuxDeps;
+    console.log(`  pkg-config: ${linuxStatus.pkgConfig ? '✓ 可用' : '✗ 不可用'}`);
+    console.log(`  GTK3:    ${linuxStatus.gtk3 ? '✓ 可用' : '✗ 缺少开发包'}`);
+    console.log(`  WebKitGTK: ${linuxStatus.webkit ? '✓ 可用' : '✗ 缺少开发包'}`);
+    console.log(`  libsoup: ${linuxStatus.libsoup ? '✓ 可用' : '✗ 缺少开发包'}`);
+  }
   console.log(`  平台:    ${process.platform} ${process.arch}`);
   console.log(`  Core:    ${coreTsx ? (workspaceOverlay ? '✓ tsx 可用' : '✓ 发布态运行时可用') : '✗ runtime 不可用'}`);
   console.log(`  Overlay: ${overlayVite ? (workspaceOverlay ? '✓ vite 可用' : '✓ 打包模板可用') : '✗ overlay 不可用'}`);
@@ -574,9 +825,30 @@ async function runFixit(): Promise<void> {
 
   if (!hasWorkspaceOverlay()) {
     console.log('  当前为发布态安装，Node 依赖随 npm 包提供。');
-    console.log('  若桌面模式失败，请确认 Rust 与 Tauri CLI 依赖已就绪。');
+    console.log('  若桌面模式失败，请确认 Rust、Cargo 与 Tauri CLI 依赖已就绪。');
+    if (process.platform === 'win32') {
+      console.log('  Windows 还需要 Visual Studio C++ Build Tools；VS Code 本身不够。');
+    }
+    if (process.platform === 'linux') {
+      console.log('  Linux 还需要 GTK / WebKitGTK / libsoup 等系统开发包。');
+    }
+    if (process.platform === 'darwin') {
+      console.log('  macOS 还需要 Xcode Command Line Tools。');
+    }
     console.log('');
     await printSystemStatus();
+    if (process.platform === 'win32') {
+      console.log('');
+      printWindowsBuildToolsHint();
+    }
+    if (process.platform === 'linux') {
+      console.log('');
+      printLinuxDesktopHint();
+    }
+    if (process.platform === 'darwin') {
+      console.log('');
+      printMacosDesktopHint();
+    }
     console.log('');
     return;
   }
@@ -599,6 +871,18 @@ async function runFixit(): Promise<void> {
 
   console.log('');
   await printSystemStatus();
+  if (process.platform === 'win32') {
+    console.log('');
+    printWindowsBuildToolsHint();
+  }
+  if (process.platform === 'linux') {
+    console.log('');
+    printLinuxDesktopHint();
+  }
+  if (process.platform === 'darwin') {
+    console.log('');
+    printMacosDesktopHint();
+  }
   console.log('');
 }
 

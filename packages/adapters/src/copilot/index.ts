@@ -20,7 +20,10 @@ export class CopilotChatAdapter extends BaseAdapter {
   private readonly COMPLETE_GRACE_MS = 60_000;
 
   static isInstalled(): boolean {
-    return hasInstalledExtension('code', ['github.copilot-chat']);
+    const globalDb = join(resolveEditorStorageDir('code', 'globalStorage'), 'state.vscdb');
+    return hasInstalledExtension('code', ['github.copilot-chat'])
+      || querySqliteValue(globalDb, 'GitHub.copilot-chat') !== null
+      || querySqliteValue(globalDb, 'chat.setupContext') !== null;
   }
 
   async start(): Promise<void> {

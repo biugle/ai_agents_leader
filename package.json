@@ -1,6 +1,6 @@
 {
   "name": "ai-agents-leader",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Local AI Runtime Signal System — see lights to know if AI is alive",
   "type": "module",
   "license": "MIT",

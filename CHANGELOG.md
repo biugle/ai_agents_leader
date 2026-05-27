@@ -27,6 +27,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 - Codex 状态检测改为优先解析 `~/.codex/sessions/**/*.jsonl` 的显式事件与最近写入，补强 `thinking` / `running` / `completed` 判定，并为未来 `waiting_input` 结构化字段预留兼容分支
 - Cursor 状态检测改为基于 `workspaceStorage/*/state.vscdb` 的最近活动，不再监听整个家目录，减少误报
 - Cline / Roo 状态检测改为基于扩展状态目录与任务文件内容解析；无扩展活动时回落到 `idle`，不再因为 VS Code 进程存在就误判 `thinking`
+- 新增 VS Code 专用 `GitHub Copilot Chat` 与 `OpenAI ChatGPT` 适配器，基于全局 Chat 状态库、OpenAI 扩展状态和 workspaceStorage 活动做状态同步
+- `aal check` / `aal fixit` 增加跨平台桌面构建前置检查与可执行安装提示：Windows 检测 Visual Studio C++ Build Tools，Linux 检测 GTK / WebKitGTK / libsoup，macOS 检测 Xcode Command Line Tools
+- 发布态 Windows 桌面构建失败时补充明确提示：VS Code 不是 Visual Studio Build Tools，不能替代 MSVC 构建环境
 - Runtime CLI 改为通过 package-scoped `pnpm --dir apps/overlay ...` 启动 Vite / Tauri，移除跨包 `require.resolve()` 依赖
 - `aal` 入口版本号改为优先读取对外根包版本，避免 `aal -v` 错报内部 `@aal/core` 版本
 - Tauri `ensure_runtime` 只拉起 Runtime，不再误启动 Web Overlay

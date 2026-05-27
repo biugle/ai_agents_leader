@@ -129,6 +129,12 @@ aal
 
 发布安装场景只要求 Node.js。若使用 `aal start` 桌面模式，还需要安装 Rust / Cargo；不需要 pnpm，也不需要保留仓库源码。
 
+桌面模式额外前提：
+
+- Windows：需要 Visual Studio C++ Build Tools。VS Code 不是同一个产品，不能替代它。
+- Linux：需要 `pkg-config`、GTK3、WebKitGTK、libsoup 等系统开发包。
+- macOS：需要 Xcode Command Line Tools。
+
 发布态下，`aal check` 会检查本机是否具备桌面模式前提。首次执行 `aal start` 时，CLI 会把桌面模板复制到 `~/.ai-agents-leader/desktop/<version>/overlay`，在该目录执行本地 Tauri release 构建，并缓存生成的可执行文件；之后再次启动会直接复用缓存。
 
 自动完成：
@@ -185,6 +191,12 @@ pnpm start
 - macOS/Linux: `curl --proto='=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - Windows: 下载安装 <https://rustup.rs/>
 
+如果已经安装 Rust 但桌面模式仍然失败：
+
+- Windows：运行 `aal check` / `aal fixit`，确认是否缺少 Visual Studio C++ Build Tools
+- Linux：运行 `aal check` / `aal fixit`，确认是否缺少 GTK / WebKitGTK / libsoup 开发包
+- macOS：运行 `aal check` / `aal fixit`，确认是否缺少 Xcode Command Line Tools
+
 ---
 
 ## 窗口行为
@@ -199,15 +211,17 @@ pnpm start
 
 ## 支持的 AI Agent
 
-| Agent           | 检测方式                | 多会话 |
-| --------------- | ----------------------- | ------ |
-| ClaudeCode      | Hooks 插件 + JSONL 文件 | ✅      |
-| Cursor          | 进程检测 + 文件监听     | ❌      |
-| CodeX           | 进程检测 + 会话文件     | ❌      |
-| OpenCode        | 进程检测 + 配置文件     | ❌      |
-| Cline           | VS Code 进程 + 扩展状态 | ❌      |
-| RooCode         | VS Code 进程 + 扩展状态 | ❌      |
-| 自定义 / 第三方 | HTTP API 推送           | ✅      |
+| Agent               | 检测方式                | 多会话 |
+| ------------------- | ----------------------- | ------ |
+| ClaudeCode          | Hooks 插件 + JSONL 文件 | ✅      |
+| Cursor              | 进程检测 + 文件监听     | ❌      |
+| CodeX               | 进程检测 + 会话文件     | ❌      |
+| GitHub Copilot Chat | VS Code Chat 状态库     | ❌      |
+| OpenAI ChatGPT      | VS Code 扩展状态        | ❌      |
+| OpenCode            | 进程检测 + 配置文件     | ❌      |
+| Cline               | VS Code 进程 + 扩展状态 | ❌      |
+| RooCode             | VS Code 进程 + 扩展状态 | ❌      |
+| 自定义 / 第三方     | HTTP API 推送           | ✅      |
 
 ### Claude Code Hooks 插件
 

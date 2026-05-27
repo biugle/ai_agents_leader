@@ -165,17 +165,19 @@ Tauri 桌面模式下，容器顶部有窗口控制按钮：
 
 ### Adapter 系统
 
-适配器是可插拔的，不硬编码任何 AI。支持 6 种内置 agent + 通用 HTTP 扩展：
+适配器是可插拔的，不硬编码任何 AI。支持 8 种内置 agent + 通用 HTTP 扩展：
 
-| Agent           | Adapter         | 检测方式                                      |
-| --------------- | --------------- | --------------------------------------------- |
-| ClaudeCode      | ClaudeAdapter   | Hooks 插件 (实时) + JSONL 文件解析 (fallback) |
-| Cursor          | CursorAdapter   | 进程检测 + Cursor workspaceStorage 状态库变化 |
-| CodeX           | CodexAdapter    | 进程检测 + 会话 JSONL 显式事件解析            |
-| OpenCode        | OpenCodeAdapter | 进程检测 + 配置文件监听                       |
-| Cline           | ClineAdapter    | VS Code 进程 + 扩展状态/任务文件解析          |
-| RooCode         | RooCodeAdapter  | VS Code 进程 + 扩展状态/任务文件解析          |
-| 第三方 / 自定义 | HttpAdapter     | HTTP API 推送状态                             |
+| Agent           | Adapter            | 检测方式                                      |
+| --------------- | ------------------ | --------------------------------------------- |
+| ClaudeCode      | ClaudeAdapter      | Hooks 插件 (实时) + JSONL 文件解析 (fallback) |
+| Cursor          | CursorAdapter      | 进程检测 + Cursor workspaceStorage 状态库变化 |
+| CodeX           | CodexAdapter       | 进程检测 + 会话 JSONL 显式事件解析            |
+| Copilot Chat    | CopilotChatAdapter | VS Code Chat 状态库 + workspaceStorage 活动   |
+| OpenAI ChatGPT  | ChatGPTAdapter     | VS Code 扩展状态 + OpenAI 状态快照变化        |
+| OpenCode        | OpenCodeAdapter    | 进程检测 + 配置文件监听                       |
+| Cline           | ClineAdapter       | VS Code 进程 + 扩展状态/任务文件解析          |
+| RooCode         | RooCodeAdapter     | VS Code 进程 + 扩展状态/任务文件解析          |
+| 第三方 / 自定义 | HttpAdapter        | HTTP API 推送状态                             |
 
 ```typescript
 interface AgentAdapter {

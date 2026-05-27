@@ -40,6 +40,12 @@ npm 页面：<https://www.npmjs.com/package/ai-agents-leader>
 
 发布安装只需要 Node.js。若要使用 `aal start` 桌面模式，还需要本机可用的 Rust / Cargo；不需要 pnpm，也不需要仓库源码。
 
+桌面模式额外前提：
+
+- Windows：需要 Visual Studio C++ Build Tools。VS Code 是另一个产品，不能替代它。
+- Linux：需要 `pkg-config`、GTK3、WebKitGTK、libsoup 等系统开发包。
+- macOS：需要 Xcode Command Line Tools。
+
 `aal check` 会检查当前环境是否具备桌面模式所需条件。`aal start` 在首次运行时会把桌面模板复制到 `~/.ai-agents-leader/desktop/<version>/overlay`，并在本地执行一次 Tauri release 构建；后续会直接复用缓存产物启动。
 
 ### 命令选项
@@ -61,15 +67,17 @@ aal fixit     # 自动修复常见启动问题
 
 ## 支持的 AI Agent
 
-| Agent              | 检测方式                | 多会话 |
-| ------------------ | ----------------------- | ------ |
-| Claude Code        | Hooks 插件 + JSONL 文件 | ✅      |
-| Cursor             | 进程检测 + 文件监听     | ❌      |
-| Codex (OpenAI)     | 进程检测 + 会话文件     | ❌      |
-| OpenCode           | 进程检测 + 配置文件     | ❌      |
-| Cline (VS Code)    | VS Code 进程 + 扩展状态 | ❌      |
-| Roo Code (VS Code) | VS Code 进程 + 扩展状态 | ❌      |
-| 自定义 / 第三方    | HTTP API 推送           | ✅      |
+| Agent               | 检测方式                | 多会话 |
+| ------------------- | ----------------------- | ------ |
+| Claude Code         | Hooks 插件 + JSONL 文件 | ✅      |
+| Cursor              | 进程检测 + 文件监听     | ❌      |
+| Codex (OpenAI)      | 进程检测 + 会话文件     | ❌      |
+| GitHub Copilot Chat | VS Code Chat 状态库     | ❌      |
+| OpenAI ChatGPT      | VS Code 扩展状态        | ❌      |
+| OpenCode            | 进程检测 + 配置文件     | ❌      |
+| Cline (VS Code)     | VS Code 进程 + 扩展状态 | ❌      |
+| Roo Code (VS Code)  | VS Code 进程 + 扩展状态 | ❌      |
+| 自定义 / 第三方     | HTTP API 推送           | ✅      |
 
 无需手动配置，启动后自动检测正在运行的 Agent。
 
@@ -126,6 +134,8 @@ aal start
 仓库内执行 `pnpm start` 时会直接使用源码工程。发布安装后执行 `aal start` 时，会使用 npm 包内自带的 overlay 模板，在用户目录本地构建并缓存桌面端。
 
 首次启动会编译 Rust（约 2-3 分钟），之后秒开。桌面端只负责 UI，若 runtime 未运行，会自动拉起 runtime-only 模式。
+
+如果桌面模式启动失败，先运行 `aal check` 或 `aal fixit`。这两个命令现在会按平台直接提示缺失的系统依赖。
 
 ---
 
